@@ -204,7 +204,7 @@ Only `mean_judge_score` is reported because upstream's `src/run.py` does not com
 
 **Links.**
 
-- Adapter PR: <https://github.com/harbor-framework/harbor/pull/1642>
+- Adapter PR: <https://github.com/harbor-framework/adapters/pull/27> (migrated from <https://github.com/harbor-framework/harbor/pull/1642>)
 - Dataset PR: <https://github.com/harbor-framework/harbor-datasets/pull/233>
 - Upstream agent methods (merged to `main`): [`src/agent_harness.py`](https://github.com/AMA-Bench/AMA-Bench/blob/main/src/agent_harness.py), [`src/method/agent_method.py`](https://github.com/AMA-Bench/AMA-Bench/blob/main/src/method/agent_method.py)
 - Parity-experiments bundle: <https://huggingface.co/datasets/harborframework/parity-experiments/discussions/253>
