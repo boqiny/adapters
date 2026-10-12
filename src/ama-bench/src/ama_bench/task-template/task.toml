@@ -17,8 +17,8 @@ timeout_sec = 1800.0
 # unset.
 [verifier.env]
 OPENAI_API_KEY = "${OPENAI_API_KEY}"
-OPENAI_BASE_URL = "${OPENAI_BASE_URL:-}"
-MODEL_NAME = "${MODEL_NAME:-gpt-5-mini}"
+OPENAI_BASE_URL = "${OPENAI_BASE_URL}"
+MODEL_NAME = "${MODEL_NAME}"
 
 [agent]
 timeout_sec = 7200.0
