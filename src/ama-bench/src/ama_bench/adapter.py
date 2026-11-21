@@ -72,13 +72,19 @@ class AMABenchAdapter:
         if not jsonl_path.exists():
             from huggingface_hub import hf_hub_download
 
-            downloaded = hf_hub_download(
-                repo_id=HF_REPO_ID,
-                filename=HF_FILENAME,
-                repo_type="dataset",
-                revision=HF_REVISION,
-                local_dir=str(self.cache_dir),
-            )
+            try:
+                downloaded = hf_hub_download(
+                    repo_id=HF_REPO_ID,
+                    filename=HF_FILENAME,
+                    repo_type="dataset",
+                    revision=HF_REVISION,
+                    local_dir=str(self.cache_dir),
+                )
+            except Exception as e:
+                raise RuntimeError(
+                    f"Could not download {HF_FILENAME} from {HF_REPO_ID} "
+                    f"(revision {HF_REVISION[:7]}): {e}"
+                ) from e
             jsonl_path = Path(downloaded)
         # A cached copy skips the download, so check it is the pinned file.
         digest = hashlib.sha256(jsonl_path.read_bytes()).hexdigest()
