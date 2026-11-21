@@ -200,7 +200,7 @@ Numbers are **mean ± sample SEM** following the Harbor convention. The two side
 | alfworld-10 | 0.450 ± 0.034 (0.383 / 0.492 / 0.475) | 0.444 ± 0.035 (0.375 / 0.467 / 0.492) |
 | random-30 | 0.646 ± 0.010 (0.628 / 0.661 / 0.650) | 0.659 ± 0.008 (0.644 / 0.664 / 0.669) |
 
-Range overlap with upstream holds under either prompt. The parity bundle keeps the first-prompt results in `harbor/` and `harbor_random/`, and adds `harbor_rescored/` with one file per trial listing every question, the agent's answer, and the old and new judgment with the judge's raw reply. `results_collection/` holds the per-run summaries for both sides.
+Range overlap with upstream holds under either prompt. The parity bundle keeps the first-prompt results in `harbor_parity/alfworld-10/` and `harbor_parity/random-30/`, and adds `harbor_parity/rescored/` with one file per trial listing every question, the agent's answer, and the old and new judgment with the judge's raw reply. `results_collection/` holds the per-run summaries for both sides.
 
 **Trial accounting.** All 120 Harbor parity trials have complete judge output (no judge failures). One trial (`ama-bench-33`, alfworld run 2) failed at Docker environment start before the agent ran and was re-run once; no trial was re-run because of an agent or judge result.
 
