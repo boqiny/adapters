@@ -32,7 +32,7 @@
         "parity_unmatching_agents": [
           "None"
         ],
-        "parity_costs": "~$2",
+        "parity_costs": "$2",
         "notes": "alfworld-10 subset: 10 alfworld episodes (EMBODIED_AI, ids 30-39), 120 QAs per run. One Harbor task is one AMA-Bench episode; the agent answers all 12 QA pairs in a single Answer[1]..Answer[12] block written to /workspace/answers.txt, and the reward is the mean LLM-judge score across the 12 QAs. Parity runs the same Claude Code agent on both sides over the same raw trajectory.jsonl (ama-bench_parity_claude_code_alfworld.yaml on Harbor 0.27.0; --method claude_code upstream at commit d2d5715), graded by claude-haiku-4-5 on both sides, 3 runs per side. See parity_experiment.json."
       },
       {
@@ -50,7 +50,7 @@
         "parity_unmatching_agents": [
           "None"
         ],
-        "parity_costs": "~$5",
+        "parity_costs": "$5",
         "notes": "random-30 subset: stratified random sample of 5 episodes per domain across the 6 domains (seed 42), 360 QAs per run. One Harbor task is one AMA-Bench episode; the agent answers all 12 QA pairs in a single Answer[1]..Answer[12] block written to /workspace/answers.txt, and the reward is the mean LLM-judge score across the 12 QAs. Parity runs the same Claude Code agent on both sides over the same raw trajectory.jsonl (ama-bench_parity_claude_code_random.yaml on Harbor 0.27.0; --method claude_code upstream at commit d2d5715), graded by claude-haiku-4-5 on both sides, 3 runs per side. See parity_experiment.json."
       }
     ]

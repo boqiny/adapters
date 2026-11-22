@@ -238,6 +238,8 @@ On Harbor 0.27.0 with the separate verifier, the oracle solution passes all 208 
 | Wrong answers, judge endpoint unreachable | first call fails | verifier error, no reward |
 | No `answers.txt` | 0 | reward 0.0 |
 
+In the outage case Harbor counts the trial as errored (`RewardFileNotFoundError`), not as a score of 0. The trial results for all five cases are in `oracle/judge_path_checks.json` in the parity bundle.
+
 ### Links
 
 - Adapter PR: <https://github.com/harbor-framework/adapters/pull/27> (migrated from <https://github.com/harbor-framework/harbor/pull/1642>)
