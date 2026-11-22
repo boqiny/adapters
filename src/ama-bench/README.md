@@ -36,7 +36,7 @@ The trajectories themselves come from a deliberately broad sweep of agent enviro
 | WEB | webarena | 31 | 177–207 |
 | **Total** | **12 task types** | **208** | **0–207** |
 
-All 208 episodes (2,496 QA pairs in total) are adapted into Harbor tasks. The parity certificate below uses two fixed subsets (alfworld-10 and a cross-domain random-30); the harness itself works against any episode.
+All 208 episodes (2,496 QA pairs in total) are adapted into Harbor tasks. The parity experiment below uses two fixed subsets (alfworld-10 and a cross-domain random-30); the harness itself works against any episode.
 
 The upstream evaluator scores each predicted answer with an LLM-as-judge (Qwen3-32B by default, temperature 0, max\_tokens 2048) and reports the mean across all QA pairs as `avg_score`.
 
@@ -141,17 +141,40 @@ The first run downloads `test/open_end_qa_set.jsonl` (~48 MB) from HuggingFace a
 
 ## Comparison with Original Benchmark (Parity)
 
-### Parity certificate (codex agent, GPT-5-mini judge on both sides)
+The same Claude Code agent runs on both sides over the same raw `trajectory.jsonl` and answers by running shell tools across many turns. Both sides are graded by the same LLM judge.
 
-Parity here is **agentic**: the **same `codex` agent** runs on both sides over the **same raw `trajectory.jsonl`**, answering by running shell tools (`grep`/`jq`/`python`) across many turns.
-
-- **Agent**: the standard Harbor `codex` agent on the Harbor side (no custom Python); the identical codex harness on the upstream side via an agentic `codex` method merged into AMA-Bench `main` (pinned here at commit `d2d5715`; [`src/agent_harness.py`](https://github.com/AMA-Bench/AMA-Bench/blob/d2d57150fb0dbb8b4697e9cbe9ea05b6b47b83a4/src/agent_harness.py) + [`src/method/agent_method.py`](https://github.com/AMA-Bench/AMA-Bench/blob/d2d57150fb0dbb8b4697e9cbe9ea05b6b47b83a4/src/method/agent_method.py), registered in [`src/method_register.py`](https://github.com/AMA-Bench/AMA-Bench/blob/d2d57150fb0dbb8b4697e9cbe9ea05b6b47b83a4/src/method_register.py), selected with `--method codex`).
-- **Model**: `openai/gpt-5-mini` on both sides, `codex@0.137.0`, `model_reasoning_effort=high`. Judge: `gpt-5-mini` on both sides.
+- **Agent**: `claude-code@2.1.330` with `anthropic/claude-haiku-5-5`. On the Harbor side it is the standard Harbor `claude-code` agent (no custom Python). On the upstream side it is AMA-Bench's `claude_code` method ([`src/agent_harness.py`](https://github.com/AMA-Bench/AMA-Bench/blob/d2d57150fb0dbb8b4697e9cbe9ea05b6b47b83a4/src/agent_harness.py), [`src/method/agent_method.py`](https://github.com/AMA-Bench/AMA-Bench/blob/d2d57150fb0dbb8b4697e9cbe9ea05b6b47b83a4/src/method/agent_method.py), selected with `--method claude_code`) at commit `d2d5715`.
+- **Judge**: `claude-haiku-4-5` on both sides, called through Anthropic's OpenAI-compatible endpoint at temperature 0 with `max_tokens=2048`.
+- **Harbor**: 0.27.0, separate verifier, Docker environment.
+- **Agent timeout**: 1800 s per episode on both sides.
 - **Subsets**: two are reported, 3 runs per side each.
-  - **alfworld-10**: 10 episodes of the **alfworld** task type (`EMBODIED_AI` domain), ids `30 31 32 33 34 35 36 37 38 39`, 12 QAs each = 120 graded QAs per run. Single-domain depth.
-  - **random-30**: a stratified random sample of 5 episodes per domain × 6 domains = 30 episodes (seed 42), ids `3 4 7 21 23 30 33 38 50 53 62 77 78 83 88 91 104 122 125 128 142 143 146 154 168 183 190 194 197 199`, 360 graded QAs per run. Cross-domain breadth.
+  - **alfworld-10**: 10 episodes of the alfworld task type (`EMBODIED_AI` domain), ids `30 31 32 33 34 35 36 37 38 39`, 120 graded QAs per run.
+  - **random-30**: a stratified random sample of 5 episodes per domain across the 6 domains (seed 42), ids `3 4 7 21 23 30 33 38 50 53 62 77 78 83 88 91 104 122 125 128 142 143 146 154 168 183 190 194 197 199`, 360 graded QAs per run.
 
-**Step 1 — generate the Harbor tasks** (all 208; each parity yaml selects its own subset):
+| Agent | Model | Metric | # Runs | Dataset Size | Original Benchmark Performance | Harbor Adapter Performance |
+|---|---|---|---|---|---|---|
+| claude-code@2.1.330 | claude-haiku-5-5 | mean\_judge\_score | 3 | 10 (alfworld) | 0.556 ± 0.015 | 0.531 ± 0.014 |
+| claude-code@2.1.330 | claude-haiku-5-5 | mean\_judge\_score | 3 | 30 (random, all 6 domains) | 0.616 ± 0.012 | 0.622 ± 0.007 |
+
+Numbers are mean ± sample SEM over the 3 runs. The two sides match when their run-score ranges overlap, which holds on both subsets:
+
+| Subset | Original runs | Harbor runs |
+|---|---|---|
+| alfworld-10 | 0.533 / 0.550 / 0.583 | 0.558 / 0.517 / 0.517 |
+| random-30 | 0.633 / 0.622 / 0.592 | 0.611 / 0.619 / 0.636 |
+
+Mean judge score by question type, pooled over the 3 runs (Harbor / original):
+
+| Subset | A Recall | B Causal | C State update | D Abstraction |
+|---|---|---|---|---|
+| alfworld-10 | 0.283 / 0.350 | 0.722 / 0.711 | 0.547 / 0.567 | 0.450 / 0.500 |
+| random-30 | 0.572 / 0.546 | 0.697 / 0.682 | 0.649 / 0.674 | 0.567 / 0.561 |
+
+All 120 Harbor trials and all 120 upstream episodes completed on the first attempt: no agent errors, no timeouts, no retries, no missing or empty answer files, and no judge failures. Only `mean_judge_score` is reported because upstream's `src/run.py` does not compute token-level F1; Harbor logs F1 in `grading_details.json` for inspection only.
+
+### Reproduction
+
+**Step 1. Generate the Harbor tasks** (all 208; each parity yaml selects its own subset):
 
 ```bash
 cd src/ama-bench
@@ -159,89 +182,84 @@ uv sync
 uv run ama-bench --output-dir ../../datasets/ama-bench --overwrite
 ```
 
-**Step 2 — run the *Harbor* side** (standard codex agent), from the repo root:
+**Step 2. Run the Harbor side** from the repo root, with Harbor 0.27.0:
 
 ```bash
-export OPENAI_API_KEY="<key>"            # optional OPENAI_BASE_URL for a proxy endpoint
-harbor run -c src/ama-bench/ama-bench_parity_codex_alfworld.yaml  # alfworld-10, repeat 3 times
-harbor run -c src/ama-bench/ama-bench_parity_codex_random.yaml   # random-30, repeat 3 times
+export ANTHROPIC_API_KEY="<key>"                        # agent
+export OPENAI_API_KEY="$ANTHROPIC_API_KEY"              # judge, same key
+export OPENAI_BASE_URL="https://api.anthropic.com/v1/"
+export MODEL_NAME="claude-haiku-4-5"
+harbor run -c src/ama-bench/ama-bench_parity_claude_code_alfworld.yaml   # alfworld-10, repeat 3 times
+harbor run -c src/ama-bench/ama-bench_parity_claude_code_random.yaml     # random-30, repeat 3 times
 ```
 
-Aggregate `/logs/verifier/reward.txt` across the task trials in the run; the per-run `mean_judge_score` is the simple mean.
+The per-run score is the mean of `verifier/reward.txt` over the trials in the job (also `stats.evals.*.metrics[0].mean` in the job's `result.json`).
 
-**Step 3 — reproduce the *original* side**. AMA-Bench `main` ships an agentic `codex` method ([`src/agent_harness.py`](https://github.com/AMA-Bench/AMA-Bench/blob/d2d57150fb0dbb8b4697e9cbe9ea05b6b47b83a4/src/agent_harness.py), `--method codex`) that writes the same raw `trajectory.jsonl` and drives `codex exec` over it with the same instruction. From a checkout of commit `d2d5715`:
+**Step 3. Run the original side** from a checkout of AMA-Bench at commit `d2d5715`, with `claude` 2.1.330 installed on the host (`npm install -g @anthropic-ai/claude-code@2.1.330`). Create the two config files:
+
+```yaml
+# configs/claude_code_haiku.yaml
+provider: "anthropic"
+model: "claude-haiku-5-5"
+timeout: 1800
+```
+
+```yaml
+# configs/llm_judge_haiku.yaml
+provider: "custom"
+model: "claude-haiku-4-5"
+base_url: "https://api.anthropic.com/v1/"
+api_key: "<key>"
+timeout: 600
+```
 
 ```bash
-export OPENAI_API_KEY="<key>"            # optional OPENAI_BASE_URL for the same endpoint
+export ANTHROPIC_API_KEY="<key>"
 python -m src.run \
-  --llm-server api \
-  --llm-config configs/codex_gpt5_mini.yaml \
-  --judge-config configs/llm_judge_gpt5_mini.yaml \
-  --subset openend \
-  --method codex \
+  --llm-server api --llm-config configs/claude_code_haiku.yaml \
+  --judge-server api --judge-config configs/llm_judge_haiku.yaml \
+  --subset openend --method claude_code \
   --episode-ids 30,31,32,33,34,35,36,37,38,39 \
-  --output-dir results/codex_runN \
+  --output-dir results/alfworld_runN \
   --max-concurrency-episodes 2
-# Repeat 3 times. Record overall.avg_score from each results_*.json.
-# For random-30, swap --episode-ids to the 30 ids above and use --max-concurrency-episodes 1.
+# Repeat 3 times and record overall.avg_score from each results_*.json.
+# For random-30, pass the 30 ids listed above to --episode-ids.
 ```
 
-| Agent | Model | Judge | Metric | # Runs | Subset Size | Original | Harbor |
-|---|---|---|---|---|---|---|---|
-| codex@0.137.0 | gpt-5-mini | gpt-5-mini | mean\_judge\_score | 3 | 10 (alfworld) | **0.464 ± 0.003** | **0.444 ± 0.035** |
-| codex@0.137.0 | gpt-5-mini | gpt-5-mini | mean\_judge\_score | 3 | 30 (random, all 6 domains) | **0.636 ± 0.006** | **0.659 ± 0.008** |
+### Oracle
 
-Numbers are **mean ± sample SEM** following the Harbor convention. The two sides match iff their run-score ranges overlap.
-
-**Re-scoring.** The Harbor runs were first graded with a judge prompt that omitted upstream's Task Type / Episode ID / Task Context block. After review the prompt was aligned with upstream, and the same three recorded runs per subset were re-judged with it on 2026-07-30 (`gpt-5-mini`, same settings). The agent never sees the judge prompt, so the recorded answers are unchanged, and the upstream side already used this prompt. 78 of 1,440 QA judgments flipped. Both sets of Harbor numbers are published:
-
-| Subset | Harbor, first judge prompt | Harbor, aligned judge prompt (reported) |
-|---|---|---|
-| alfworld-10 | 0.450 ± 0.034 (0.383 / 0.492 / 0.475) | 0.444 ± 0.035 (0.375 / 0.467 / 0.492) |
-| random-30 | 0.646 ± 0.010 (0.628 / 0.661 / 0.650) | 0.659 ± 0.008 (0.644 / 0.664 / 0.669) |
-
-Range overlap with upstream holds under either prompt. The parity bundle keeps the first-prompt results in `harbor_parity/alfworld-10/` and `harbor_parity/random-30/`, and adds `harbor_parity/rescored/` with one file per trial listing every question, the agent's answer, and the old and new judgment with the judge's raw reply. `results_collection/` holds the per-run summaries for both sides.
-
-**Trial accounting.** All 120 Harbor parity trials have complete judge output (no judge failures). One trial (`ama-bench-33`, alfworld run 2) failed at Docker environment start before the agent ran and was re-run once; no trial was re-run because of an agent or judge result.
-
-- **alfworld-10**: upstream [0.458, 0.467] and Harbor [0.375, 0.492] overlap, so parity holds. Per-run judge scores: upstream 0.467 / 0.467 / 0.458; Harbor 0.375 / 0.467 / 0.492. Per-QA-type means align too (A 0.317 / 0.367, B 0.689 / 0.711, C 0.347 / 0.393, D 0.450 / 0.367 for Harbor / upstream).
-- **random-30** (cross-domain): upstream [0.625, 0.647] and Harbor [0.644, 0.669] overlap, so parity holds. Per-run judge scores: upstream 0.636 / 0.625 / 0.647; Harbor 0.644 / 0.664 / 0.669. The random sample spans all 6 domains, so this is the stronger breadth check; the two sides agree to within ~2 points.
-
-Only `mean_judge_score` is reported because upstream's `src/run.py` does not compute token-level F1; F1 is logged in Harbor's `grading_details.json` for inspection only.
-
-**Oracle.** On Harbor 0.27.0 with the separate verifier, the oracle solution passes all 208 tasks (208/208 trials, 0 exceptions, mean 1.000). The oracle matches the gold answers exactly, so it never calls the judge. The judge path was checked separately on `ama-bench-30`. These checks used `gpt-5.5` as a stand-in judge because the endpoint available for them did not serve `gpt-5-mini`; they test the verifier plumbing, not parity:
+On Harbor 0.27.0 with the separate verifier, the oracle solution passes all 208 tasks (208/208 trials, 0 exceptions, mean 1.000). The oracle matches the gold answers exactly, so it never calls the judge. The judge path was checked separately on `ama-bench-30` with the `claude-haiku-4-5` judge:
 
 | Submission on `ama-bench-30` | Judge calls | Result |
 |---|---|---|
 | Reference solution | 0 | reward 1.0 |
 | 12 deliberately wrong answers | 12 | reward 0.0 |
-| Gold answers with a prefix added (not an exact match) | 12 | reward 1.0 |
+| Gold answers with a sentence prepended (not an exact match) | 12 | reward 1.0 |
 | Wrong answers, judge endpoint unreachable | first call fails | verifier error, no reward |
 | No `answers.txt` | 0 | reward 0.0 |
 
-**Links.**
+### Links
 
 - Adapter PR: <https://github.com/harbor-framework/adapters/pull/27> (migrated from <https://github.com/harbor-framework/harbor/pull/1642>)
 - Dataset PR: <https://github.com/harbor-framework/harbor-datasets/pull/233>
-- Upstream agent methods (commit `d2d5715`): [`src/agent_harness.py`](https://github.com/AMA-Bench/AMA-Bench/blob/d2d57150fb0dbb8b4697e9cbe9ea05b6b47b83a4/src/agent_harness.py), [`src/method/agent_method.py`](https://github.com/AMA-Bench/AMA-Bench/blob/d2d57150fb0dbb8b4697e9cbe9ea05b6b47b83a4/src/method/agent_method.py)
-- Parity-experiments bundle: <https://huggingface.co/datasets/harborframework/parity-experiments/discussions/253>
+- Parity results: <https://huggingface.co/datasets/harborframework/parity-experiments/discussions/253>
+- Upstream agent harness (commit `d2d5715`): [`src/agent_harness.py`](https://github.com/AMA-Bench/AMA-Bench/blob/d2d57150fb0dbb8b4697e9cbe9ea05b6b47b83a4/src/agent_harness.py), [`src/method/agent_method.py`](https://github.com/AMA-Bench/AMA-Bench/blob/d2d57150fb0dbb8b4697e9cbe9ea05b6b47b83a4/src/method/agent_method.py)
 
 ## Notes & Caveats
 
-- **Agentic, tool-using parity.** Both sides run the `codex` agent over the raw `trajectory.jsonl` and answer by running shell tools (`grep`/`jq`/`python`) across many turns. This certifies the agent harness, not upstream's single-shot `longcontext` method (the original AMA-Bench release had no tool-using agent). Trajectory *representation* matters: codex reads the raw `{turn_idx, action, observation}` JSONL on both sides, so precise step-range questions resolve cleanly via `jq` — keep the two sides on the same file format.
-- **Judge cost**: each task makes 12 sequential judge calls. Plan API budget accordingly; with concurrent trials (`n_concurrent_trials` in the YAML) this can saturate a small endpoint.
+- **What the parity covers.** Both sides run a tool-using agent over the raw `{turn_idx, action, observation}` JSONL. This certifies the agent harness, not upstream's single-shot `longcontext` method, which inlines a truncated trajectory into one prompt.
+- **Judge cost.** Each task makes up to 12 sequential judge calls. With concurrent trials (`n_concurrent_trials` in the YAML) this can saturate a small endpoint.
 - **Judge failures are verifier errors, not scores.** If a judge call fails after the SDK's 3 retries, or the judge returns no yes/no decision, `llm_judge.py` raises and writes no reward, so Harbor reports a verifier error for that trial. A missing `answers.txt` is an agent outcome and scores 0.
-- **Grading differences from upstream** (pinned at [`d2d5715`](https://github.com/AMA-Bench/AMA-Bench/tree/d2d57150fb0dbb8b4697e9cbe9ea05b6b47b83a4)). The judge prompt, yes/no parsing, `max_tokens=2048` match upstream `utils/evaluation_metrics.py` (which overrides the 1024 in the judge config), and minimal reasoning effort matches upstream `configs/llm_judge_gpt5_mini.yaml`. The differences are:
-  - Exact-match short-circuit: an answer identical to the gold answer scores 1.0 without a judge call. Upstream always calls the judge. It fired on 14 of the 1,440 QAs in the Harbor parity runs.
+- **Grading differences from upstream** (pinned at [`d2d5715`](https://github.com/AMA-Bench/AMA-Bench/tree/d2d57150fb0dbb8b4697e9cbe9ea05b6b47b83a4)). The judge prompt, yes/no parsing, temperature 0 and `max_tokens=2048` match upstream `utils/evaluation_metrics.py`. The differences are:
+  - Exact-match short-circuit: an answer identical to the gold answer scores 1.0 without a judge call. Upstream always calls the judge. It fired on 3 of the 1,440 QAs in the Harbor parity runs.
   - Unparseable judge reply: Harbor raises (verifier error). Upstream falls back to the token F1 score for that QA.
   - Answer regex: Harbor uses `[ \t]*` after `Answer[i]:` so a blank answer cannot swallow the next block. Upstream uses `\s*`.
   - Post-processing: upstream wraps each parsed answer as `###Answer: ...` and passes it through `extract_final_answer`. Harbor grades the parsed answer text directly.
-  - Retries: Harbor relies on the OpenAI SDK's `max_retries=3` (up to 4 requests per judgment). Upstream wraps an SDK client with default retries in an outer loop of up to three attempts.
+  - Retries: Harbor relies on the OpenAI SDK's `max_retries=3`. Upstream wraps an SDK client with default retries in an outer loop of up to three attempts.
   - Missing `Answer[i]` marker: Harbor grades an empty answer for that question. Upstream grades the whole raw response for it.
-  - Empty `answers.txt`: Harbor grades 12 empty answers. Upstream's codex harness treats it as missing and retries the agent.
-  - Measured effect: the same 240 agent answers (alfworld run 1 from each side) were replayed through the upstream grader at the pin and through this grader, sharing one judge (`gpt-5.5` as a stand-in, replies cached by prompt). Parsed answers and scores were identical on all 240. On the 120 gold answers the two differ on 8, all from the exact-match short-circuit where the judge rejects a gold answer. Results are in `grader_replay/` in the parity bundle.
-- **Agent budget differences in the parity runs.** Harbor ran codex with a 7200 s timeout and a single attempt per task; a run that writes no `answers.txt` scores 0. Upstream `src/agent_harness.py` uses a 1800 s timeout and retries codex up to 3 times on a timeout or a missing `answers.txt`. How often upstream retried was not recorded; on the Harbor side no trial had a missing or empty `answers.txt`. Both sides ran `codex@0.137.0` with `model_reasoning_effort=high` (the Harbor trial logs show it as the effective setting; the Harbor parity configs now set it explicitly). The instruction wording differs slightly: Harbor points at `/app/trajectory.jsonl` and `/workspace/answers.txt` and lists `head/tail/grep/python`; upstream uses the current directory and also lists `jq`.
-- **Pins.** Upstream code: commit `d2d5715`, which adds the codex parity config; the harness and grading files are unchanged since `c852f80`. Dataset: `AMA-bench/AMA-bench` revision `a577737` (pinned in `adapter.py`). The separate-verifier oracle was verified on Harbor 0.27.0; the Harbor revision used for the original parity runs was not recorded.
+  - Measured effect: the 240 agent answers from alfworld run 1 (both sides) and the 120 gold answers were replayed through the upstream grader at the pin and through this grader, sharing one `claude-haiku-4-5` judge with replies cached by prompt. Parsed answers and scores were identical on all 360. Results are in `grader_replay/` in the parity bundle.
+- **Agent differences in the parity runs.** Harbor installs Claude Code inside the task container and gives each task a single attempt; a run that writes no `answers.txt` scores 0. Upstream runs `claude -p` on the host in a temporary directory, retries up to 3 times on a timeout or a missing `answers.txt`, and falls back to the agent's final message if the file is missing. Neither the retry nor the fallback was triggered in these runs. The instruction wording differs slightly: Harbor points at `/app/trajectory.jsonl` and `/workspace/answers.txt` and lists `head/tail/grep/python`; upstream uses the current directory and also lists `jq`. The task default agent timeout is 7200 s; the parity configs override it to 1800 s to match upstream.
+- **Pins.** Upstream code: commit `d2d5715`. Dataset: `AMA-bench/AMA-bench` revision `a577737` (pinned in `adapter.py` with a SHA-256 check). Harbor: 0.27.0.
 - **Verifier isolation.** Grading runs in a separate container, so nothing the agent does to its own Python environment or filesystem can reach the judge. Predicted answers are still inlined into the judge prompt, as upstream does, so a judge prompt injection through the answer text remains possible. If Harbor fails to transfer `answers.txt` to the verifier, the trial is graded as if the agent wrote nothing.
 
 ## Installation / Prerequisites
